@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controllo Locale Daikin Ibrido</title>
+    <style>
+
+        :root {
+            --bg: #0f172a;
+            --text: #f1f5f9;
+            --card: #1e293b;
+        }
+
+        [data-theme="light"] {
+            --bg: #f1f5f9;
+            --text: #0f172a;
+            --card: #ffffff;
+        }
+
+
+
+
+
+
+
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 750px;
+            margin: 20px auto;
+            padding: 20px;
+            /*background: #f4f4f9;*/
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .card {
+            background: var(--card);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            color: var(--text);
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        input, select, button {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        button {
+            background: #0078d4;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+            button:hover {
+                background: #005a9e;
+            }
+
+        .status {
+            padding: 10px;
+            background: var(--bg); /*#e1f5fe;*/
+            border-left: 5px solid #0288d1;
+            margin-top: 15px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-all; /* Forza il testo ad andare a capo se troppo lungo */
+            max-width: 100%; /* Impedisce l'allargamento oltre il riquadro */
+            box-sizing: border-box;
+        }
+
+        .temp-display {
+            font-size: 24px;
+            font-weight: bold;
+            color: #0288d1;
+            text-align: center;
+            margin: 10px 0;
+        }
+    </style>
+
+    <style>
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto 20px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+            header h1 {
+                font-size: 1.6rem;
+                font-weight: 700;
+            }
+
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-header {
+            background: var(--btn-bg);
+            border: none;
+            color: var(--text);
+            padding: 9px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+            .btn-header:hover {
+                opacity: 0.85;
+            }
+
+            .btn-header:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+    </style>
+
+
+
+
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+
+    <!--<link rel="icon" type="image/png" href="/automated-system.png">-->
+
+</head>
+<body>
+
+    <!--<div id="toast-container"></div>-->
+
+    <header>
+        <h1>Controllo Daikin LAN</h1>
+        <div class="header-buttons">
+            <button class="btn-header" onclick="toggleTheme()">Cambia tema</button>
+        </div>
+    </header>
+
+
+
+
+    <!-- CONFIGURAZIONE IP E LETTURA -->
+    <div class="card">
+        <div class="form-group">
+            <label for="ipAddress">Indirizzo IP Condizionatore:</label>
+            <input type="text" id="ipAddress" placeholder="Es. 192.168.1.XXX">
+        </div>
+        <button onclick="leggiTutto()">Aggiorna Dati</button>
+    </div>
+
+    <!-- MONITORAGGIO SENSORI -->
+    <div class="card">
+        <div style="display: flex; gap: 15px; text-align: center;">
+            <div style="flex: 1;">
+                <label>Temperatura Stanza:</label>
+                <div id="stanzaTemp" style="font-size: 24px; font-weight: bold; color: #0288d1; margin-top: 5px;">-- °C</div>
+            </div>
+            <div style="flex: 1;">
+                <label>Temperatura Esterna:</label>
+                <div id="esternaTemp" style="font-size: 24px; font-weight: bold; color: #e65100; margin-top: 5px;">-- °C</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANNELLO DI CONTROLLO -->
+    <div class="card">
+        <div class="form-group">
+            <label for="pow">Stato (Accensione):</label>
+            <select id="pow">
+                <option value="0">Spento</option>
+                <option value="1">Acceso</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="mode">Modalità:</label>
+            <select id="mode">
+                <option value="2">Deumidificazione (Dry)</option>
+                <option value="3">Raffrescamento (Cool)</option>
+                <option value="4">Riscaldamento (Heat)</option>
+                <option value="6">Solo Ventilazione (Fan)</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="stemp">Temperatura Desiderata (°C):</label>
+            <input type="number" id="stemp" min="10" max="32" step="0.5" value="23.0">
+        </div>
+
+        <div class="form-group">
+            <label for="frate">Velocità Ventilazione (Fan Rate):</label>
+            <select id="frate">
+                <option value="A">Automatica (Auto)</option>
+                <option value="B">Silenziosa (Silent/Notte)</option>
+                <option value="3">Velocità 1 (Minima)</option>
+                <option value="4">Velocità 2</option>
+                <option value="5">Velocità 3</option>
+                <option value="6">Velocità 4</option>
+                <option value="7">Velocità 5 (Massima)</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="fdir">Direzione Alette (Fan Direction):</label>
+            <select id="fdir">
+                <option value="0">Fisse (Stop Oscillazione)</option>
+                <option value="1">Oscillazione Verticale (Su/Giù)</option>
+                <option value="2">Oscillazione Orizzontale (Destra/Sinistra)</option>
+                <option value="3">Oscillazione 3D (Tutte le direzioni)</option>
+            </select>
+        </div>
+
+        <button onclick="inviaComando()" style="background-color: #2e7d32;">Invia Modifiche</button>
+    </div>
+
+    <!-- LOG DI RISPOSTA -->
+    <div class="card">
+        <h3>Stato Sistema:</h3>
+        <div id="outputLog" class="status">Inserisci l'IP e premi "Aggiorna Dati".</div>
+    </div>
+
+
+    <script>
+        // Oggetto globale per memorizzare tutti i parametri del condizionatore
+        let parametriAttuali = {
+            ret: "OK", pow: "1", mode: "3", stemp: "23.0", shum: "0", f_rate: "A", f_dir: "0"
+        };
+
+        // Converte la stringa CSV di Daikin in un Oggetto JavaScript
+        function parseDaikinResponse(text) {
+            const obj = {};
+            text.split(',').forEach(coppia => {
+                const [chiave, valore] = coppia.split('=');
+                if (chiave) obj[chiave.trim()] = valore ? valore.trim() : '';
+            });
+            return obj;
+        }
+
+        // 1. FUNZIONE DI LETTURA DATI
+        async function leggiTutto() {
+            const logDiv = document.getElementById('outputLog');
+            const tempDiv = document.getElementById('stanzaTemp');
+            logDiv.innerText = "Interrogazione in corso tramite PHP local bridge...";
+
+            try {
+                // Chiamata locale al file PHP (stessa porta 8089, CORS nullo)
+                const resControl = await fetch('daikin-bridge.php?cmd=get_control_info');
+                const testoControl = await resControl.text();
+
+                if (testoControl.includes("ret=ERROR")) throw new Error(testoControl);
+
+                parametriAttuali = parseDaikinResponse(testoControl);
+
+                // Aggiorniamo i campi visivi
+                if (parametriAttuali.ret === "OK") {
+                    document.getElementById('pow').value = parametriAttuali.pow;
+                    document.getElementById('mode').value = parametriAttuali.mode;
+                    document.getElementById('stemp').value = parametriAttuali.stemp;
+                    document.getElementById('frate').value = parametriAttuali.f_rate;
+                    document.getElementById('fdir').value = parametriAttuali.f_dir;
+                }
+
+                // Leggiamo la temperatura stanza sempre tramite PHP
+                const resSensor = await fetch('daikin-bridge.php?cmd=get_sensor_info');
+                const testoSensor = await resSensor.text();
+                const datiSensori = parseDaikinResponse(testoSensor);
+
+                if (datiSensori.htemp) {
+                    tempDiv.innerText = datiSensori.htemp + " °C";
+                }
+                if (datiSensori.otemp) {
+                    document.getElementById('esternaTemp').innerText = datiSensori.otemp + " °C";
+                }
+
+                logDiv.innerText = "Dati letti con successo via PHP Bridge sulla porta 8089!\n\nRisposta:\n" + testoControl;
+
+            } catch (error) {
+                logDiv.innerText = "Errore durante la lettura:\n" + error.message;
+                tempDiv.innerText = "-- °C";
+            }
+        }
+
+        // 2. FUNZIONE DI INVIO COMANDI
+        async function inviaComando() {
+            const logDiv = document.getElementById('outputLog');
+            logDiv.innerText = "Invio comando in corso...";
+
+            // Raccogliamo i valori aggiornati dall'interfaccia
+            parametriAttuali.pow = document.getElementById('pow').value;
+            parametriAttuali.mode = document.getElementById('mode').value;
+            parametriAttuali.f_rate = document.getElementById('frate').value;
+            parametriAttuali.f_dir = document.getElementById('fdir').value;
+            parametriAttuali.stemp = parseFloat(document.getElementById('stemp').value).toFixed(1);
+
+            // Generiamo la query string escludendo il 'ret' per pulizia
+            const queryParams = new URLSearchParams(parametriAttuali).toString();
+
+            try {
+                // Inviamo i parametri al file PHP
+                const response = await fetch(`daikin-bridge.php?cmd=set_control_info&${queryParams}`);
+                const testoRisposta = await response.text();
+
+                logDiv.innerText = "Risposta dell'invio elaborata dal NAS:\n" + testoRisposta;
+
+                // Aggiorna lo stato dopo 1 secondo per sincronizzare la grafica
+                setTimeout(leggiTutto, 1000);
+            } catch (error) {
+                logDiv.innerText = "Errore durante l'invio via PHP:\n" + error.message;
+            }
+        }
+    </script>
+
+    <script>
+
+        // Tema
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute("data-theme");
+            const next = current === "light" ? "dark" : "light";
+            document.documentElement.setAttribute("data-theme", next);
+            localStorage.setItem("theme", next);
+        }
+        document.documentElement.setAttribute("data-theme", localStorage.getItem("theme") || "dark");
+
+    </script>
+
+
+</body>
+</html>

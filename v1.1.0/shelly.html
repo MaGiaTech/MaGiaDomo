@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Consumi Shelly</title>
+  <script src="chart.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --green: #22c55e;
+      --red: #ef4444;
+      --orange: #f97316;
+      --border: rgba(255,255,255,0.08);
+      --btn-bg: #334155;
+    }
+    [data-theme="light"] {
+      --bg: #f1f5f9;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --accent: #0284c7;
+      --border: rgba(0,0,0,0.08);
+      --btn-bg: #e2e8f0;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg); color: var(--text); min-height: 100vh; padding: 20px;
+      transition: background 0.3s, color 0.3s;
+    }
+    header {
+      display: flex; justify-content: space-between; align-items: center;
+      max-width: 1400px; margin: 0 auto 20px; flex-wrap: wrap; gap: 12px;
+    }
+    header h1 { font-size: 1.6rem; font-weight: 700; }
+    .header-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn-header {
+      background: var(--btn-bg); border: none; color: var(--text);
+      padding: 9px 16px; border-radius: 10px; cursor: pointer; font-size: 0.9rem; font-weight: 500;
+    }
+    .btn-header:hover { opacity: 0.85; }
+    .btn-header:disabled { opacity: 0.5; cursor: not-allowed; }
+    .last-update { text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 18px; }
+    .total-card {
+      background: linear-gradient(135deg, #0ea5e9, #6366f1); color: white; border-radius: 18px;
+      padding: 20px 26px; max-width: 1400px; margin: 0 auto 22px; display: flex;
+      justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+      box-shadow: 0 8px 25px rgba(14,165,233,0.25);
+    }
+    .total-power { font-size: 2.5rem; font-weight: 800; line-height: 1; }
+    .total-label { font-size: 0.95rem; opacity: 0.9; }
+    .total-energy { margin-top: 8px; font-size: 1.2rem; font-weight: 700; opacity: 0.95; }
+    .chart-container {
+      background: var(--card); border-radius: 16px; padding: 18px; max-width: 1400px;
+      margin: 0 auto 28px; border: 1px solid var(--border);
+    }
+    .chart-title { font-size: 0.95rem; font-weight: 600; margin-bottom: 10px; color: var(--muted); }
+    .grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 18px; max-width: 1400px; margin: 0 auto;
+    }
+    .card {
+      background: var(--card); border-radius: 16px; padding: 18px;
+      border: 1px solid var(--border); transition: transform 0.2s;
+    }
+    .card:hover { transform: translateY(-3px); }
+    .card.offline { border-color: var(--orange); box-shadow: 0 0 0 2px rgba(249,115,22,0.25); }
+    .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; gap: 8px; }
+    .device-name { font-size: 1.05rem; font-weight: 600; }
+    .device-sub { font-size: 0.75rem; color: var(--muted); margin-top: 3px; }
+    .status { width: 12px; height: 12px; border-radius: 50%; background: var(--muted); flex-shrink: 0; margin-top: 4px; }
+    .status.on { background: var(--green); box-shadow: 0 0 8px var(--green); }
+    .status.off { background: var(--red); }
+    .status.error { background: var(--orange); }
+    .power { font-size: 2.2rem; font-weight: 700; color: var(--accent); margin-bottom: 4px; line-height: 1; }
+    .power span { font-size: 1rem; font-weight: 500; color: var(--muted); }
+    .details { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: 14px 0; font-size: 0.86rem; }
+    .detail { background: rgba(128,128,128,0.08); padding: 8px 10px; border-radius: 9px; }
+    .detail-label { color: var(--muted); font-size: 0.73rem; margin-bottom: 2px; }
+    .detail-value { font-weight: 600; }
+    .meta-block { margin-top: 8px; margin-bottom: 10px; font-size: 0.84rem; }
+    .meta-row { display: grid; grid-template-columns: 110px 1fr; gap: 8px; padding: 4px 0; align-items: start; }
+    .meta-label { color: var(--muted); }
+    .meta-value { font-weight: 500; word-break: break-word; white-space: pre-wrap; }
+    .note-value { min-height: 1.2em; }
+    .editable { cursor: pointer; border-radius: 6px; padding: 2px 4px; }
+    .editable:hover { background: rgba(56,189,248,0.12); }
+    .edit-input, .edit-textarea {
+      width: 100%; border: 1px solid var(--accent); border-radius: 8px;
+      padding: 6px 8px; background: var(--bg); color: var(--text); font: inherit;
+    }
+    .edit-textarea { min-height: 58px; resize: vertical; }
+    .buttons { display: flex; gap: 9px; margin-top: 10px; }
+    .btn { flex: 1; border: none; padding: 9px; border-radius: 9px; font-weight: 600; font-size: 0.88rem; cursor: pointer; }
+    .btn-on { background: var(--green); color: white; }
+    .btn-off { background: var(--red); color: white; }
+    .btn-reset {
+      width: 100%; margin-top: 8px; background: #64748b; color: white; border: none;
+      padding: 9px; border-radius: 9px; font-weight: 600; cursor: pointer;
+    }
+    .error-msg { color: var(--orange); font-size: 0.83rem; margin-top: 8px; font-weight: 600; }
+    footer { text-align: center; margin-top: 40px; color: var(--muted); font-size: 0.84rem; }
+    #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+    .toast {
+      background: #1e293b; color: white; padding: 14px 18px; border-radius: 12px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.3); border-left: 5px solid var(--orange);
+      min-width: 280px; animation: slideIn 0.3s ease;
+    }
+    .toast.online { border-left-color: var(--green); }
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 8px 6px; text-align: left; }
+  </style>
+</head>
+<body>
+  <div id="toast-container"></div>
+
+  <header>
+    <h1>Dashboard Consumi Shelly</h1>
+    <div class="header-buttons">
+      <button class="btn-header" id="scanBtn" onclick="scanNetwork()">Scansiona rete</button>
+      <button class="btn-header" onclick="requestNotificationPermission()">Attiva notifiche</button>
+      <button class="btn-header" onclick="toggleTheme()">Cambia tema</button>
+    </div>
+  </header>
+
+  <div class="last-update" id="lastUpdate">Aggiornamento in corso...</div>
+
+  <div class="total-card">
+    <div>
+      <div class="total-label">Potenza totale istantanea</div>
+      <div class="total-power" id="totalPower">-- W</div>
+      <div class="total-energy" id="totalEnergy">-- kWh</div>
+    </div>
+    <div style="text-align:right; opacity:0.9; font-size:0.95rem;" id="deviceCount">0 dispositivi</div>
+  </div>
+
+  <div class="chart-container">
+    <div class="chart-title">Andamento potenza (W) ed energia totale (kWh) - ultimi 30 punti</div>
+    <canvas id="powerChart" height="90"></canvas>
+  </div>
+
+  <div class="chart-container" style="margin-bottom: 28px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+      <div class="chart-title" style="margin: 0;">Storico eventi offline / online</div>
+      <button class="btn-header" onclick="loadEventsHistory()" style="padding: 6px 12px; font-size: 0.82rem;">Aggiorna storico</button>
+    </div>
+    <div style="max-height: 340px; overflow-y: auto;">
+      <table>
+        <thead>
+          <tr style="color: var(--muted); border-bottom: 1px solid var(--border);">
+            <th>Data / Ora</th><th>Dispositivo</th><th>IP</th><th>Evento</th>
+          </tr>
+        </thead>
+        <tbody id="eventsTableBody">
+          <tr><td colspan="4" style="padding: 18px; text-align: center; color: var(--muted);">Caricamento storico...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="grid" id="dashboard"></div>
+  <footer>Funziona completamente offline in LAN - Supporto Switch / PM1 / EM (Pro)</footer>
+
+  <script>
+    let devices = [];
+    const EVENTS_URL = "events.php";
+    const DEVICES_URL = "devices.php";
+    const UPDATE_INTERVAL = 3000;
+    let previousStatus = {};
+
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute("data-theme");
+      const next = current === "light" ? "dark" : "light";
+      document.documentElement.setAttribute("data-theme", next);
+      localStorage.setItem("theme", next);
+    }
+    document.documentElement.setAttribute("data-theme", localStorage.getItem("theme") || "dark");
+
+    function requestNotificationPermission() {
+      if (!("Notification" in window)) { alert("Questo browser non supporta le notifiche desktop."); return; }
+      if (!window.isSecureContext) { alert("Le notifiche richiedono HTTPS."); return; }
+      Notification.requestPermission().then(p => {
+        if (p === "granted") showToast("Notifiche attivate", true);
+        else alert("Permesso notifiche negato.");
+      });
+    }
+
+    function sendNotification(title, body, isOnline) {
+      if (Notification.permission === "granted") new Notification(title, { body: body });
+      showToast(title + " - " + body, isOnline);
+      playAlertSound(isOnline);
+    }
+
+    function showToast(message, isOnline) {
+      const c = document.getElementById("toast-container");
+      const t = document.createElement("div");
+      t.className = "toast" + (isOnline ? " online" : "");
+      t.textContent = message;
+      c.appendChild(t);
+      setTimeout(() => t.remove(), 6000);
+    }
+
+    function playAlertSound(isOnline) {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        if (isOnline) {
+          osc.frequency.value = 880; gain.gain.value = 0.1;
+          osc.start(); osc.stop(ctx.currentTime + 0.15);
+        } else {
+          osc.frequency.value = 440; gain.gain.value = 0.15;
+          osc.start(); setTimeout(() => { osc.frequency.value = 330; }, 150);
+          osc.stop(ctx.currentTime + 0.4);
+        }
+      } catch (e) {}
+    }
+
+    function deviceKey(d) {
+      return d.ip + "|" + (d.channel ?? 0) + "|" + (d.component || "switch");
+    }
+
+    function proxyUrl(dev, action) {
+      return "proxy.php?ip=" + encodeURIComponent(dev.ip) +
+        "&action=" + encodeURIComponent(action) +
+        "&channel=" + encodeURIComponent(dev.channel ?? 0) +
+        "&component=" + encodeURIComponent(dev.component || "switch");
+    }
+
+    function escapeHtml(text) {
+      return String(text ?? "")
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    async function loadDevicesFromServer() {
+      try {
+        const res = await fetch(DEVICES_URL + "?t=" + Date.now());
+        const data = await res.json();
+        if (data.success && Array.isArray(data.devices)) {
+          devices = data.devices.map(d => ({
+            name: d.name || ("Shelly-" + String(d.ip).split(".").pop()),
+            ip: d.ip,
+            channel: (typeof d.channel === "number") ? d.channel : 0,
+            component: d.component || "switch",
+            model: d.model || "Shelly",
+            note: d.note || "",
+            energyResetAt: d.energyResetAt || null
+          }));
+        } else devices = [];
+      } catch (e) {
+        console.warn(e);
+        devices = [];
+      }
+    }
+
+    async function saveDevicesToServer() {
+      try {
+        await fetch(DEVICES_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(devices)
+        });
+      } catch (e) {
+        console.warn(e);
+        showToast("Errore salvataggio lista dispositivi", false);
+      }
+    }
+
+    async function logEvent(name, ip, status) {
+      try {
+        await fetch(EVENTS_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, ip, status })
+        });
+      } catch (e) {}
+    }
+
+    async function loadEventsHistory() {
+      const tbody = document.getElementById("eventsTableBody");
+      try {
+        const res = await fetch(EVENTS_URL + "?t=" + Date.now());
+        const data = await res.json();
+        if (!data.success || !data.events || data.events.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" style="padding:18px;text-align:center;color:var(--muted);">Nessun evento registrato</td></tr>';
+          return;
+        }
+        tbody.innerHTML = data.events.map(ev => {
+          const color = ev.status === "offline" ? "var(--orange)" : "var(--green)";
+          const label = ev.status === "offline" ? "OFFLINE" : "ONLINE";
+          return '<tr style="border-bottom:1px solid var(--border);"><td>' + escapeHtml(ev.timestamp) +
+            '</td><td>' + escapeHtml(ev.name) + '</td><td>' + escapeHtml(ev.ip) +
+            '</td><td style="font-weight:600;color:' + color + ';">' + label + '</td></tr>';
+        }).join("");
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="4" style="padding:18px;text-align:center;color:var(--orange);">Errore caricamento storico</td></tr>';
+      }
+    }
+
+    const ctx = document.getElementById("powerChart").getContext("2d");
+    const powerHistory = [];
+    const energyHistory = [];
+    const labels = [];
+    const chart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: labels,
+        datasets: [
+          { label: "Potenza totale (W)", data: powerHistory, borderColor: "#38bdf8", backgroundColor: "rgba(56,189,248,0.12)", fill: true, tension: 0.3, pointRadius: 0, yAxisID: "y" },
+          { label: "Energia totale (kWh)", data: energyHistory, borderColor: "#a78bfa", backgroundColor: "rgba(167,139,250,0.08)", fill: false, tension: 0.3, pointRadius: 0, yAxisID: "y1" }
+        ]
+      },
+      options: {
+        responsive: true,
+        interaction: { mode: "index", intersect: false },
+        plugins: { legend: { display: true, labels: { color: "#94a3b8" } } },
+        scales: {
+          x: { display: false },
+          y: { beginAtZero: true, position: "left", ticks: { color: "#38bdf8" }, grid: { color: "rgba(148,163,184,0.12)" }, title: { display: true, text: "W", color: "#38bdf8" } },
+          y1: { beginAtZero: true, position: "right", ticks: { color: "#a78bfa" }, grid: { drawOnChartArea: false }, title: { display: true, text: "kWh", color: "#a78bfa" } }
+        },
+        animation: false
+      }
+    });
+
+    const dashboard = document.getElementById("dashboard");
+    const lastUpdateEl = document.getElementById("lastUpdate");
+    const totalPowerEl = document.getElementById("totalPower");
+    const totalEnergyEl = document.getElementById("totalEnergy");
+    const deviceCountEl = document.getElementById("deviceCount");
+
+    function buildCards() {
+      dashboard.innerHTML = "";
+      previousStatus = {};
+      devices.forEach((dev, index) => {
+        previousStatus[index] = null;
+        const canSwitch = (dev.component || "switch") === "switch";
+        const canReset = (dev.component || "switch") !== "em";
+        const card = document.createElement("div");
+        card.className = "card";
+        card.id = "card-" + index;
+        card.innerHTML =
+          '<div class="card-header"><div><div class="device-name editable" data-field="name" data-index="' + index + '" title="Clicca per rinominare">' + escapeHtml(dev.name) +
+          '</div><div class="device-sub">' + escapeHtml(dev.ip) + ' · ch ' + (dev.channel ?? 0) + ' · ' + escapeHtml(dev.component || "switch") +
+          '</div></div><div class="status" id="status-' + index + '"></div></div>' +
+          '<div class="power" id="power-' + index + '">-- <span>W</span></div>' +
+          '<div class="details">' +
+          '<div class="detail"><div class="detail-label">Corrente</div><div class="detail-value" id="current-' + index + '">-- A</div></div>' +
+          '<div class="detail"><div class="detail-label">Tensione</div><div class="detail-value" id="voltage-' + index + '">-- V</div></div>' +
+          '<div class="detail"><div class="detail-label">Energia totale</div><div class="detail-value" id="energy-' + index + '">-- kWh</div></div>' +
+          '<div class="detail"><div class="detail-label">Stato</div><div class="detail-value" id="state-' + index + '">--</div></div>' +
+          '</div>' +
+          '<div class="meta-block">' +
+          '<div class="meta-row"><span class="meta-label">Model</span><span class="editable meta-value" data-field="model" data-index="' + index + '">' + escapeHtml(dev.model || "Shelly") + '</span></div>' +
+          '<div class="meta-row"><span class="meta-label">Note</span><span class="editable meta-value note-value" data-field="note" data-index="' + index + '">' + escapeHtml(dev.note || "") + '</span></div>' +
+          '<div class="meta-row"><span class="meta-label">Temperatura</span><span class="meta-value" id="temp-' + index + '">-- °C</span></div>' +
+          '<div class="meta-row"><span class="meta-label">Reset energia</span><span class="meta-value" id="resetAt-' + index + '">' + escapeHtml(dev.energyResetAt || "Mai azzerato") + '</span></div>' +
+          '<div class="meta-row"><span class="meta-label">kWh dal reset</span><span class="meta-value" id="energySince-' + index + '">-- kWh</span></div>' +
+          '</div>' +
+          (canSwitch ? '<div class="buttons"><button class="btn btn-on" onclick="setSwitch(' + index + ', true)">Accendi</button><button class="btn btn-off" onclick="setSwitch(' + index + ', false)">Spegni</button></div>' : '') +
+          (canReset ? '<button class="btn-reset" onclick="resetEnergyCounter(' + index + ')">Azzera contatore</button>' : '') +
+          '<div class="error-msg" id="error-' + index + '" style="display:none;"></div>';
+        dashboard.appendChild(card);
+      });
+      deviceCountEl.textContent = devices.length + " dispositivi";
+      bindEditableFields();
+    }
+
+    function bindEditableFields() {
+      document.querySelectorAll(".editable").forEach(el => {
+        el.onclick = () => startInlineEdit(el);
+      });
+    }
+
+    function startInlineEdit(el) {
+      const index = parseInt(el.dataset.index, 10);
+      const field = el.dataset.field;
+      if (Number.isNaN(index) || !devices[index]) return;
+      const current = devices[index][field] || "";
+      const isNote = field === "note";
+      const input = document.createElement(isNote ? "textarea" : "input");
+      input.className = isNote ? "edit-textarea" : "edit-input";
+      input.value = current;
+      el.replaceWith(input);
+      input.focus();
+      if (!isNote && input.select) input.select();
+      let saved = false;
+      const save = async () => {
+        if (saved) return;
+        saved = true;
+        const value = input.value.trim();
+        devices[index][field] = value;
+        const span = document.createElement(el.tagName.toLowerCase() === "div" ? "div" : "span");
+        span.className = el.className;
+        span.dataset.field = field;
+        span.dataset.index = String(index);
+        span.title = el.title || "Clicca per modificare";
+        span.textContent = value;
+        input.replaceWith(span);
+        span.onclick = () => startInlineEdit(span);
+        await saveDevicesToServer();
+        showToast("Salvato", true);
+      };
+      input.addEventListener("blur", save);
+      input.addEventListener("keydown", e => {
+        if (e.key === "Enter" && !isNote) { e.preventDefault(); input.blur(); }
+        if (e.key === "Escape") { input.value = current; input.blur(); }
+      });
+    }
+
+    async function resetEnergyCounter(index) {
+      const dev = devices[index];
+      if (!dev) return;
+      if (!confirm('Azzerare il contatore energia di "' + dev.name + '" (' + dev.ip + ' ch' + (dev.channel ?? 0) + ')?')) return;
+      try {
+        const res = await fetch(proxyUrl(dev, "reset"));
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.error) { showToast("Errore reset contatore", false); return; }
+        const now = new Date();
+        const pad = n => String(n).padStart(2, "0");
+        dev.energyResetAt = now.getFullYear() + "-" + pad(now.getMonth() + 1) + "-" + pad(now.getDate()) + " " +
+          pad(now.getHours()) + ":" + pad(now.getMinutes()) + ":" + pad(now.getSeconds());
+        await saveDevicesToServer();
+        const resetEl = document.getElementById("resetAt-" + index);
+        const energyEl = document.getElementById("energySince-" + index);
+        if (resetEl) resetEl.textContent = dev.energyResetAt;
+        if (energyEl) energyEl.textContent = "0.000 kWh";
+        showToast("Contatore azzerato", true);
+        setTimeout(() => fetchDevice(index), 500);
+      } catch (e) {
+        showToast("Errore reset contatore", false);
+      }
+    }
+
+	async function probe(ip, component, channel, timeoutMs) {
+	  try {
+		const controller = new AbortController();
+		const timer = setTimeout(() => controller.abort(), timeoutMs);
+		const url = "proxy.php?ip=" + encodeURIComponent(ip) +
+		  "&action=status&component=" + encodeURIComponent(component) +
+		  "&channel=" + channel;
+		const res = await fetch(url, { signal: controller.signal });
+		clearTimeout(timer);
+		if (!res.ok) return null;
+
+		const data = await res.json();
+		if (!data || data.error) return null;
+
+		// Scarta errori RPC Shelly (metodo inesistente sul dispositivo)
+		if (typeof data.code === "number" && data.code < 0) return null;
+		if (data.message && !data.apower && data.apower !== 0 && !data.aenergy && data.output === undefined) {
+		  return null;
+		}
+
+		if (component === "switch") {
+		  // Deve sembrare uno Switch vero (relè / plug / pro canale)
+		  const ok =
+			typeof data.output === "boolean" ||
+			typeof data.apower === "number" ||
+			(data.aenergy && typeof data.aenergy.total === "number");
+		  return ok ? data : null;
+		}
+
+		if (component === "pm1") {
+		  // PM1: misura senza necessariamente "output"
+		  const ok =
+			typeof data.apower === "number" &&
+			(typeof data.voltage === "number" || (data.aenergy && typeof data.aenergy.total === "number"));
+		  return ok ? data : null;
+		}
+
+		if (component === "em") {
+		  // Solo misuratori EM veri (es. Pro 3EM), non i plug normali
+		  const raw = data.raw_em || data;
+		  const ok =
+			typeof raw.total_act_power === "number" ||
+			typeof raw.a_act_power === "number" ||
+			(typeof raw.a_voltage === "number" && typeof raw.a_current === "number");
+		  return ok ? data : null;
+		}
+
+		return null;
+	  } catch (e) {
+		return null;
+	  }
+	}
+
+    <!-- async function probe(ip, component, channel, timeoutMs) { -->
+      <!-- try { -->
+        <!-- const controller = new AbortController(); -->
+        <!-- const timer = setTimeout(() => controller.abort(), timeoutMs); -->
+        <!-- const url = "proxy.php?ip=" + encodeURIComponent(ip) + "&action=status&component=" + encodeURIComponent(component) + "&channel=" + channel; -->
+        <!-- const res = await fetch(url, { signal: controller.signal }); -->
+        <!-- clearTimeout(timer); -->
+        <!-- if (!res.ok) return null; -->
+        <!-- const data = await res.json(); -->
+        <!-- if (!data || data.error) return null; -->
+        <!-- if (component === "switch" || component === "pm1") { -->
+          <!-- const ok = typeof data.apower === "number" || typeof data.output === "boolean" || -->
+            <!-- (data.aenergy && typeof data.aenergy === "object") || typeof data.voltage === "number"; -->
+          <!-- if (!ok) return null; -->
+        <!-- } -->
+        <!-- return data; -->
+      <!-- } catch (e) { return null; } -->
+    <!-- } -->
+
+    async function scanNetwork() {
+      const btn = document.getElementById("scanBtn");
+      btn.disabled = true;
+      btn.textContent = "Scansione in corso...";
+
+      const network = "192.168.1.";
+      const start = 1, end = 254, concurrency = 5, timeoutMs = 1800;
+
+      const existingByKey = {};
+      devices.forEach(d => { existingByKey[deviceKey(d)] = d; });
+      const foundByKey = {};
+
+      async function scanIp(ip) {
+        const found = [];
+        for (let ch = 0; ch <= 3; ch++) {
+          const data = await probe(ip, "switch", ch, timeoutMs);
+          if (!data) { if (ch === 0) break; continue; }
+          const key = ip + "|" + ch + "|switch";
+          if (existingByKey[key]) found.push(Object.assign({}, existingByKey[key]));
+          else found.push({
+            name: "Shelly-" + ip.split(".").pop() + (ch > 0 ? " ch" + ch : ""),
+            ip: ip, channel: ch, component: "switch", model: "Shelly", note: "", energyResetAt: null
+          });
+        }
+        const pm = await probe(ip, "pm1", 0, timeoutMs);
+        if (pm) {
+          const key = ip + "|0|pm1";
+          if (existingByKey[key]) found.push(Object.assign({}, existingByKey[key]));
+          else found.push({ name: "Shelly-PM-" + ip.split(".").pop(), ip: ip, channel: 0, component: "pm1", model: "Shelly PM", note: "", energyResetAt: null });
+        }
+        const em = await probe(ip, "em", 0, timeoutMs);
+        if (em) {
+          const key = ip + "|0|em";
+          if (existingByKey[key]) found.push(Object.assign({}, existingByKey[key]));
+          else found.push({ name: "Shelly-EM-" + ip.split(".").pop(), ip: ip, channel: 0, component: "em", model: "Shelly EM", note: "", energyResetAt: null });
+        }
+        return found;
+      }
+
+      try {
+        const ips = [];
+        for (let i = start; i <= end; i++) ips.push(network + i);
+        for (let i = 0; i < ips.length; i += concurrency) {
+          const batch = ips.slice(i, i + concurrency);
+          btn.textContent = "Scansione... " + Math.min(i + concurrency, ips.length) + "/" + ips.length;
+          const batchResults = await Promise.all(batch.map(ip => scanIp(ip)));
+          batchResults.flat().forEach(d => { foundByKey[deviceKey(d)] = d; });
+        }
+
+        const merged = {};
+        Object.keys(existingByKey).forEach(k => { merged[k] = Object.assign({}, existingByKey[k]); });
+        Object.keys(foundByKey).forEach(k => { if (!merged[k]) merged[k] = foundByKey[k]; });
+
+        devices = Object.values(merged);
+        devices.sort((a, b) => {
+          const aa = a.ip.split(".").map(Number);
+          const bb = b.ip.split(".").map(Number);
+          for (let k = 0; k < 4; k++) if (aa[k] !== bb[k]) return aa[k] - bb[k];
+          if ((a.channel ?? 0) !== (b.channel ?? 0)) return (a.channel ?? 0) - (b.channel ?? 0);
+          return String(a.component || "").localeCompare(String(b.component || ""));
+        });
+
+        await saveDevicesToServer();
+        buildCards();
+        updateAll();
+        showToast("Lista aggiornata: " + devices.length + " dispositivi/canali", true);
+      } catch (err) {
+        console.error(err);
+        showToast("Errore durante lo scan", false);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Scansiona rete";
+      }
+    }
+
+    async function setSwitch(index, state) {
+      try {
+        await fetch(proxyUrl(devices[index], state ? "on" : "off"));
+        setTimeout(() => fetchDevice(index), 400);
+      } catch (e) {
+        showToast("Errore comando", false);
+      }
+    }
+
+    async function fetchDevice(index) {
+      const dev = devices[index];
+      const statusEl = document.getElementById("status-" + index);
+      const errorEl = document.getElementById("error-" + index);
+      const card = document.getElementById("card-" + index);
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 3000);
+        const res = await fetch(proxyUrl(dev, "status"), { signal: controller.signal });
+        clearTimeout(timeout);
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        const energyWh = data.aenergy?.total || 0;
+        const energyKwh = energyWh / 1000;
+
+        document.getElementById("power-" + index).innerHTML = (data.apower ?? 0).toFixed(1) + " <span>W</span>";
+        document.getElementById("current-" + index).textContent = (data.current != null) ? Number(data.current).toFixed(3) + " A" : "-- A";
+        document.getElementById("voltage-" + index).textContent = (data.voltage != null) ? Number(data.voltage).toFixed(1) + " V" : "-- V";
+        document.getElementById("energy-" + index).textContent = energyKwh.toFixed(3) + " kWh";
+        document.getElementById("energySince-" + index).textContent = energyKwh.toFixed(3) + " kWh";
+        document.getElementById("state-" + index).textContent =
+          (data.output === true) ? "ACCESO" : (data.output === false) ? "SPENTO" : "N/D";
+        document.getElementById("resetAt-" + index).textContent = devices[index].energyResetAt || "Mai azzerato";
+
+        const tempC = data.temperature?.tC;
+        document.getElementById("temp-" + index).textContent = (typeof tempC === "number") ? tempC.toFixed(1) + " °C" : "-- °C";
+
+        if (data.output === true) statusEl.className = "status on";
+        else if (data.output === false) statusEl.className = "status off";
+        else statusEl.className = "status on";
+
+        errorEl.style.display = "none";
+        card.classList.remove("offline");
+
+        if (previousStatus[index] === false) {
+          sendNotification("Dispositivo online", dev.name + " (" + dev.ip + ")", true);
+          logEvent(dev.name, dev.ip, "online");
+        }
+        previousStatus[index] = true;
+        return { power: data.apower || 0, energy: energyKwh };
+      } catch (err) {
+        statusEl.className = "status error";
+        errorEl.style.display = "block";
+        errorEl.textContent = "OFFLINE - Non raggiungibile";
+        card.classList.add("offline");
+        document.getElementById("power-" + index).innerHTML = "-- <span>W</span>";
+        document.getElementById("current-" + index).textContent = "-- A";
+        document.getElementById("voltage-" + index).textContent = "-- V";
+        document.getElementById("energy-" + index).textContent = "-- kWh";
+        document.getElementById("state-" + index).textContent = "OFFLINE";
+        document.getElementById("temp-" + index).textContent = "-- °C";
+        document.getElementById("energySince-" + index).textContent = "-- kWh";
+        document.getElementById("resetAt-" + index).textContent = devices[index].energyResetAt || "Mai azzerato";
+        if (previousStatus[index] === true) {
+          sendNotification("Dispositivo offline", dev.name + " (" + dev.ip + ")", false);
+          logEvent(dev.name, dev.ip, "offline");
+        }
+        previousStatus[index] = false;
+        return { power: 0, energy: 0 };
+      }
+    }
+
+    async function updateAll() {
+      if (devices.length === 0) {
+        totalPowerEl.textContent = "0 W";
+        totalEnergyEl.textContent = "0.000 kWh";
+        deviceCountEl.textContent = "0 dispositivi";
+        return;
+      }
+      const results = await Promise.all(devices.map((_, i) => fetchDevice(i)));
+      const totalPower = results.reduce((a, b) => a + (b.power || 0), 0);
+      const totalEnergy = results.reduce((a, b) => a + (b.energy || 0), 0);
+      totalPowerEl.textContent = totalPower.toFixed(1) + " W";
+      totalEnergyEl.textContent = totalEnergy.toFixed(3) + " kWh";
+      const now = new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      labels.push(now);
+      powerHistory.push(totalPower);
+      energyHistory.push(Number(totalEnergy.toFixed(3)));
+      if (labels.length > 30) { labels.shift(); powerHistory.shift(); energyHistory.shift(); }
+      chart.update();
+      lastUpdateEl.textContent = "Ultimo aggiornamento: " + new Date().toLocaleTimeString("it-IT");
+    }
+
+    async function init() {
+      await loadDevicesFromServer();
+      buildCards();
+      updateAll();
+      loadEventsHistory();
+      setInterval(updateAll, UPDATE_INTERVAL);
+      setInterval(loadEventsHistory, 30000);
+    }
+    init();
+  </script>
+</body>
+</html>

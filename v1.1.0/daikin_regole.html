@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Configuratore Automazioni Daikin Multi-Regola</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1080px; margin: 20px auto; padding: 20px; background: #f4f4f9; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 15px; }
+        .form-group { margin-bottom: 15px; }
+        .form-row { display: flex; gap: 15px; margin-bottom: 15px; }
+        .form-row .form-group { flex: 1; margin-bottom: 0; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 13px; }
+        input, select, button { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        button { background: #0078d4; color: white; border: none; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; font-weight: bold; }
+        .btn-del { background: #d32f2f; padding: 4px 8px; font-size: 12px; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .status { padding: 10px; background: #e1f5fe; border-left: 5px solid #0288d1; margin-top: 15px; font-family: monospace; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+
+    <h2>Pannello Multi-Programmazione Clima</h2>
+
+    <!-- IP GLOBALE -->
+    <div class="card">
+        <div class="form-row" style="align-items: flex-end;">
+            <div class="form-group" style="flex: 2;">
+                <label for="ip_global">Indirizzo IP Condizionatore:</label>
+                <input type="text" id="ip_global" placeholder="Es. 192.168.1.XXX">
+            </div>
+            <div class="form-group" style="flex: 1;">
+                <button onclick="salvaIP()" style="background-color: #512da8;">Salva IP</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AGGIUNGI REGOLA -->
+    <div class="card">
+        <h3>Aggiungi Nuova Regola</h3>
+        <div class="form-row">
+            <div class="form-group"><label for="data_inizio">Dal Giorno:</label><input type="date" id="data_inizio"></div>
+            <div class="form-group"><label for="data_fine">Al Giorno:</label><input type="date" id="data_fine"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label for="ora_inizio">Dalle Ore:</label><input type="time" id="ora_inizio"></div>
+            <div class="form-group"><label for="ora_fine">Alle Ore:</label><input type="time" id="ora_fine"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label for="temperatura_soglia">Se Temp. Stanza supera (°C):</label><input type="number" id="temperatura_soglia" step="0.5"></div>
+            <div class="form-group"><label for="temperatura_desiderata">Imposta a (°C):</label><input type="number" id="temperatura_desiderata" step="0.5"></div>
+        </div>
+        <div class="form-group">
+            <label for="modalita">Modalità Operativa:</label>
+            <select id="modalita">
+                <option value="2">Deumidificazione (Dry)</option>
+                <option value="3" selected>Raffrescamento (Cool)</option>
+                <option value="4">Riscaldamento (Heat)</option>
+                <option value="6">Solo Ventilazione (Fan)</option>
+            </select>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="f_rate">Velocità Ventilazione:</label>
+                <select id="f_rate">
+                    <option value="A">Automatica (Auto)</option>
+                    <option value="B">Silenziosa</option>
+                    <option value="3">Velocità 1 (Min)</option>
+                    <option value="5">Velocità 3</option>
+                    <option value="7">Velocità 5 (Max)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="f_dir">Direzione Deflettori:</label>
+                <select id="f_dir">
+                    <option value="0">Fisse (Stop)</option>
+                    <option value="1">Verticale (Su/Giù)</option>
+                    <option value="3">Oscillazione 3D (Tutte)</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-group" style="background: #f1f8e9; padding: 10px; border-radius: 4px; border: 1px dashed #7cb342;">
+            <label for="azione_fine" style="color: #33691e;">Azione alla fine dell'orario (Ora Fine):</label>
+            <select id="azione_fine">
+                <option value="spegni">Spegni il Condizionatore</option>
+                <option value="nulla" selected>Nessuna Azione (Rimane acceso)</option>
+                <option value="ripristina">Ripristina Stato Precedente (Backup)</option>
+            </select>
+        </div>
+        <button onclick="aggiungiRegola()" style="background-color: #2e7d32;">Aggiungi Regola alla Lista</button>
+    </div>
+
+    <!-- TABELLA -->
+    <div class="card">
+        <h3>Regole Attualmente Attive</h3>
+        <table id="tabellaRegole">
+            <thead>
+                <tr>
+                    <th>Validità Date</th>
+                    <th>Orario</th>
+                    <th>Soglia</th>
+                    <th>Target / Mod</th>
+                    <th>Azione Fine</th>
+                    <th>Azione</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <!-- LOG -->
+    <div class="card">
+        <h3>Stato Operazione:</h3>
+        <div id="outputLog" class="status">Caricamento in corso...</div>
+    </div>
+    <script>
+        let databaseGlobale = { ip_condizionatore: "", lista_regole: [] };
+
+        function getNomeModalita(codice) {
+            const mappe = { "2": "Dry", "3": "Cool", "4": "Heat", "6": "Fan" };
+            return mappe[codice] || codice;
+        }
+
+        async function caricaDati() {
+            const logDiv = document.getElementById('outputLog');
+            try {
+                const res = await fetch('daikin-bridge.php?cmd=leggi_config');
+                databaseGlobale = await res.json();
+                if (!databaseGlobale.lista_regole) databaseGlobale.lista_regole = [];
+                document.getElementById('ip_global').value = databaseGlobale.ip_condizionatore || "";
+                renderTabella();
+                logDiv.innerText = "Dati sincronizzati con il database JSON.";
+            } catch (e) {
+                logDiv.innerText = "Impossibile leggere il database regole.json.";
+            }
+        }
+
+        function renderTabella() {
+			const tbody = document.querySelector("#tabellaRegole tbody");
+			tbody.innerHTML = "";
+			
+			if (!databaseGlobale.lista_regole || databaseGlobale.lista_regole.length === 0) {
+				tbody.innerHTML = "<tr><td colspan='6' style='text-align:center; color:#999;'>Nessuna regola salvata.</td></tr>";
+				return;
+			}
+
+			// Mappa i codici di ventilazione e alette in testo leggibile per l'utente
+			const mappaVentola = { "A": "Auto", "B": "Silenziosa", "3": "Vel. 1", "4": "Vel. 2", "5": "Vel. 3", "6": "Vel. 4", "7": "Vel. 5" };
+			const mappaAlette = { "0": "Fisse", "1": "Su/Giù", "2": "Dx/Sx", "3": "3D" };
+
+			databaseGlobale.lista_regole.forEach((regola, index) => {
+				const tr = document.createElement("tr");
+				
+				// Risoluzione delle scritte leggibili dai codici JSON
+				const txtVentola = mappaVentola[regola.f_rate] || regola.f_rate || "Auto";
+				const txtAlette = mappaAlette[regola.f_dir] || regola.f_dir || "Fisse";
+
+				tr.innerHTML = "<td>Dal " + regola.data_inizio + "<br>Al " + regola.data_fine + "</td>" +
+							   "<td>" + regola.ora_inizio + " - " + regola.ora_fine + "</td>" +
+							   "<td>&ge; " + regola.temperatura_soglia + "°C</td>" +
+							   "<td>" + regola.temperatura_desiderata + "°C (" + getNomeModalita(regola.modalita) + ")<br>" +
+							   "<small>Ventola: " + txtVentola + " | Alette: " + txtAlette + "</small></td>" +
+							   "<td style='font-weight:bold; color:#e65100;'>" + regola.azione_fine.toUpperCase() + "</td>" +
+							   "<td><button class='btn-del' onclick='eliminaRegola(" + index + ")'>Elimina</button></td>";
+				tbody.appendChild(tr);
+			});
+		}
+
+        async function salvaDatabaseCompleto() {
+            const logDiv = document.getElementById('outputLog');
+            try {
+                const response = await fetch('daikin-bridge.php?cmd=salva_config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(databaseGlobale)
+                });
+                const rispostaTesto = await response.text();
+                logDiv.innerText = "Sincronizzazione completata: " + rispostaTesto;
+                renderTabella();
+            } catch (error) {
+                logDiv.innerText = "Errore durante il salvataggio dei dati: " + error.message;
+            }
+        }
+
+        function salvaIP() {
+            databaseGlobale.ip_condizionatore = document.getElementById('ip_global').value;
+            salvaDatabaseCompleto();
+        }
+
+        function aggiungiRegola() {
+            const dInizio = document.getElementById('data_inizio').value;
+            const dFine = document.getElementById('data_fine').value;
+            const oInizio = document.getElementById('ora_inizio').value;
+            const oFine = document.getElementById('ora_fine').value;
+            const tSoglia = document.getElementById('temperatura_soglia').value;
+            const tDesiderata = document.getElementById('temperatura_desiderata').value;
+
+            if (!dInizio || !dFine || !oInizio || !oFine || !tSoglia || !tDesiderata) {
+                alert("Attenzione: Compila tutti i campi richiesti prima di aggiungere la regola!");
+                return;
+            }
+
+            const nuovaRegola = {
+                data_inizio: dInizio,
+                data_fine: dFine,
+                ora_inizio: oInizio,
+                ora_fine: oFine,
+                temperatura_soglia: parseFloat(tSoglia).toFixed(1),
+                temperatura_desiderata: parseFloat(tDesiderata).toFixed(1),
+                modalita: document.getElementById('modalita').value,
+                f_rate: document.getElementById('f_rate').value,
+                f_dir: document.getElementById('f_dir').value,
+                azione_fine: document.getElementById('azione_fine').value
+            };
+
+            databaseGlobale.lista_regole.push(nuovaRegola);
+            salvaDatabaseCompleto();
+        }
+
+        functionGrid:
+        function eliminaRegola(index) {
+            if (confirm("Vuoi davvero eliminare questa regola?")) {
+                databaseGlobale.lista_regole.splice(index, 1);
+                salvaDatabaseCompleto();
+            }
+        }
+
+        window.onload = caricaDati;
+    </script>
+</body>
+</html>
