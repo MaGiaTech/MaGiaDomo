@@ -22,6 +22,18 @@ Questo progetto fornisce un'interfaccia web per visualizzare lo stato e controll
 - Comando condizionatori Diakin
 - Regole automatiche per regolare i condizionatori Daikin
 
+## Screenshot
+
+### SHELLY
+![Dashboard Shelly](screenshots/ShellyDashboard1.png)
+![Dashboard Shelly](screenshots/ShellyDashboard2.png)
+![Dashboard Shelly](screenshots/ShellyDashboard3.png)
+
+### DAIKIN
+![Controllo](screenshots/DaikinControllo.png)
+![Gestione regole](screenshots/DaikinRegole1.png)
+![Gestione regole](screenshots/DaikinRegole2.png)
+
 ## 🛠️ Tecnologie utilizzate
 
 - **Apache** - Web server (version 2.4)
