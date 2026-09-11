@@ -22,6 +22,12 @@ Questo progetto fornisce un'interfaccia web per visualizzare lo stato e controll
 - Comando condizionatori Diakin
 - Regole automatiche per regolare i condizionatori Daikin
 
+#### 💡 :bulb: CONSIGLI PER SHELLY
+Configurare OUTPUT SETTINGS utilizzando il seguente indirizzo, dove xxx.xxx.xxx.xxx deve essere sostituito con l'indirizzo IP assegnato al dispositivo:
+http://xxx.xxx.xxx.xxx/#/switch/0/settings/io-settings
+Importante: configurare lo stato di riattivazione dell'uscita in caso di interruzione e successivo ripristino dell'alimentazione elettrica.
+
+
 ## Screenshot
 
 ### SHELLY
@@ -31,6 +37,7 @@ Questo progetto fornisce un'interfaccia web per visualizzare lo stato e controll
 
 ### DAIKIN
 ![Controllo](screenshots/DaikinControllo.png)
+### DAIKIN REGOLE
 ![Gestione regole](screenshots/DaikinRegole1.png)
 ![Gestione regole](screenshots/DaikinRegole2.png)
 
